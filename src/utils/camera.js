@@ -8,7 +8,7 @@ const camera = new THREE.PerspectiveCamera(
 );
 
 // 2. 设置摄像头位置
-camera.position.set(0, 12, 16);
+camera.position.set(2, 4, 6);
 
 // 3. 让摄像头看向场景中心（可选）
 camera.lookAt(0, 0, 0);

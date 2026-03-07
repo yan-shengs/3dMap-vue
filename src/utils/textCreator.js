@@ -9,11 +9,11 @@ function createTextSprite(text, centerid) {
   canvas.height = 128;
 
   // 设置字体样式
-  context.font = "bold 12px Arial";
+  context.font = "bold 24px Arial";
   context.fillStyle = "#ffffff";
   context.textAlign = "center";
   context.textBaseline = "middle";
-  
+
   // 在canvas中心绘制文本
   context.fillText(text, canvas.width / 2, canvas.height / 2);
 
@@ -26,10 +26,10 @@ function createTextSprite(text, centerid) {
   const sprite = new THREE.Sprite(material);
 
   // 调整精灵大小
-  sprite.scale.set(10, 5, 1);
+  sprite.scale.set(10 * 0.3, 5 * 0.3, 1 * 0.3);
 
   // 设置位置（centerid需要经过projection转换）
-  sprite.position.set(centerid[0], centerid[1], centerid[2] || 1);
+  sprite.position.set(centerid[0], 1.3 || centerid[1], centerid[2] || 1);
 
   return sprite;
 }

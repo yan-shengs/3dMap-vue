@@ -14,6 +14,8 @@ import { onMounted } from "vue";
 import controls from "../utils/orbitControls.js";
 import gridHelper from "../utils/GridHelper.js";
 import createTextSprite from "../utils/textCreator.js";
+import loaders from "../utils/HDR.js";
+import SVGloader from "../utils/SVGloader.js";
 
 // 获取处理后的数据
 const Map = processing(mapJson, mapValue);
@@ -21,10 +23,13 @@ const Map = processing(mapJson, mapValue);
 const scene = new THREE.Scene();
 
 // 修改背景颜色
-scene.background = new THREE.Color(0x1a1a1a);
+scene.background = new THREE.Color(0xd4e7fd);
 
 // 增加网格背景
 scene.add(gridHelper);
+
+// const axesHelper = new THREE.AxesHelper(100);
+// scene.add(axesHelper);
 
 // 初始化摄像头和渲染画布,控制器
 const control = controls(camera, renderer);
@@ -35,6 +40,8 @@ function animate() {
   renderer.render(scene, camera);
 }
 
+loaders(scene);
+
 // 在组件挂载后执行DOM操作
 onMounted(() => {
   // 挂载到页面
@@ -43,16 +50,27 @@ onMounted(() => {
 
   // d3处理经纬度
   Map.features.forEach((feature) => {
+    // 为每个城市创建一个Group
+    const cityGroup = new THREE.Group();
+    cityGroup.name = feature.properties.name;
+
     // 增加城市字体
     const centroid = feature.properties.centroid;
     const projectedCentroid = projection(centroid);
     const scale = 0.8;
     const textX = (projectedCentroid[0] - window.innerWidth / 2) * scale;
     const textY = (projectedCentroid[1] - window.innerHeight / 2) * scale;
-    
-    const textSprite = createTextSprite(feature.properties.name, [textX, 1, textY]);
-    scene.add(textSprite);
-    
+
+    const textSprite = createTextSprite(feature.properties.name, [
+      textX,
+      1,
+      textY,
+    ]);
+    cityGroup.add(textSprite);
+
+    // 传递转换后的坐标给SVGloader
+    SVGloader(scene, [textX, textY, 1 + 0.01]);
+
     feature.geometry.coordinates.forEach((geo) => {
       geo.forEach((area) => {
         // 制作Mesh地图块
@@ -88,15 +106,20 @@ onMounted(() => {
         });
         // ExtrudeGeometry代替ShapeGeometry
         // const geometry = new THREE.ShapeGeometry(shape);
-        const material = new THREE.MeshBasicMaterial({
-          color: 0x728bd2,
+        const material = new THREE.MeshPhysicalMaterial({
+          color: 0x234cb0,
           side: THREE.DoubleSide,
+          transmission: 1, // 透明度（玻璃关键）
+          metalness: 0.1,
+          ior: 1.5, // 折射率（玻璃约1.5）
+          thickness: 0.5, // 厚度
+          roughness: 0.8,
         });
 
         const mesh = new THREE.Mesh(geometry, material);
         // 旋转Mesh
         mesh.rotation.x = -Math.PI / 2;
-        scene.add(mesh);
+        cityGroup.add(mesh);
 
         // 边界线
         const edges = new THREE.EdgesGeometry(geometry);
@@ -108,9 +131,12 @@ onMounted(() => {
 
         line.rotation.x = -Math.PI / 2;
 
-        scene.add(line);
+        cityGroup.add(line);
       });
     });
+
+    // 将整个城市Group添加到场景
+    scene.add(cityGroup);
   });
 
   // 渲染

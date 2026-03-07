@@ -4,19 +4,23 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 const controls = (camera, renderer) => {
   const control = new OrbitControls(camera, renderer.domElement);
   // 启用阻尼（推荐）
-  controls.enableDamping = true;
+  control.enableDamping = true;
 
   // 阻尼系数
-  controls.dampingFactor = 0.05;
+  control.dampingFactor = 0.65;
 
   // 是否可以缩放
-  controls.enableZoom = true;
+  control.enableZoom = true;
+  control.minDistance = 14; // 最小缩放距离
+  control.maxDistance = 16; // 最大缩放距离
 
   // 是否可以旋转
-  controls.enableRotate = false;
+  control.enableRotate = true;
+  control.minPolarAngle = Math.PI / 6; // 最小角度
+  control.maxPolarAngle = Math.PI / 2 - Math.PI / 6; // 最大角度
 
   // 是否可以平移
-  controls.enablePan = true;
+  control.enablePan = false;
 
   return control;
 };

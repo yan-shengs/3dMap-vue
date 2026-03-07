@@ -4,7 +4,7 @@
 
 This is a project named "3dMap-vue" on GitHub. The demo displays a 3D map of Zhejiang Province, built with Three.js and Vue3. It is an imitation of a project called "3dgeoMap" on GitHub, and the link is attached below.
 
-![image-20260307003830187](./README.assets/image-20260307003830187.png)
+![image-20260308001253686](./README.assets/image-20260308001253686.png)
 
 ## Tech Stack
 
