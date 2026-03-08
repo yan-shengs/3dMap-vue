@@ -9,7 +9,7 @@ function createTextSprite(text, centerid) {
   canvas.height = 128;
 
   // 设置字体样式
-  context.font = "bold 24px Arial";
+  context.font = "bold 24px STHeiti";
   context.fillStyle = "#ffffff";
   context.textAlign = "center";
   context.textBaseline = "middle";
@@ -20,6 +20,7 @@ function createTextSprite(text, centerid) {
   const texture = new THREE.CanvasTexture(canvas);
 
   const material = new THREE.SpriteMaterial({
+    color: 0xc89775,
     map: texture,
   });
 

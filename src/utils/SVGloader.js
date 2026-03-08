@@ -11,6 +11,7 @@ const SVGloader = (position) => {
   textureLoader.load(svgURL, function (texture) {
     // 创建Sprite材质
     const spriteMaterial = new THREE.SpriteMaterial({
+      color: 0x8fa3fd,
       map: texture,
       transparent: true,
       depthTest: true,

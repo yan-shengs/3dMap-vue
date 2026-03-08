@@ -10,12 +10,14 @@ import mapValue from "../assets/values_with_Zhejiang.json";
 import camera from "../utils/Camera.js";
 import renderer from "../utils/renderer.js";
 import projection from "../utils/projection-d3.js";
-import { onMounted } from "vue";
 import controls from "../utils/orbitControls.js";
 import gridHelper from "../utils/GridHelper.js";
 import createTextSprite from "../utils/textCreator.js";
 import loaders from "../utils/HDR.js";
 import SVGloader from "../utils/SVGloader.js";
+import heightMap from "../utils/height.js";
+import { onMounted, onUnmounted } from "vue";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
 // 获取处理后的数据
 const Map = processing(mapJson, mapValue);
@@ -42,17 +44,37 @@ function animate() {
 
 loaders(scene);
 
+const handleResize = () => {
+  // 1. 获取窗口最新的宽高
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+
+  // 2. 更新相机
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+
+  // 3. 更新渲染器
+  renderer.setSize(width, height);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+};
+
 // 在组件挂载后执行DOM操作
 onMounted(() => {
   // 挂载到页面
   const threeContainer = document.getElementById("threeContainer");
   threeContainer.appendChild(renderer.domElement);
 
+  handleResize();
+  // 监听窗口变化
+  window.addEventListener("resize", handleResize);
   // d3处理经纬度
   Map.features.forEach((feature) => {
     // 为每个城市创建一个Group
     const cityGroup = new THREE.Group();
     cityGroup.name = feature.properties.name;
+
+    // 收集当前城市的所有几何体用于合并
+    const cityGeometries = [];
 
     // 增加城市字体
     const centroid = feature.properties.centroid;
@@ -63,7 +85,7 @@ onMounted(() => {
 
     const textSprite = createTextSprite(feature.properties.name, [
       textX,
-      1,
+      heightMap[feature.properties.name] * scale * 5,
       textY,
     ]);
     cityGroup.add(textSprite);
@@ -103,15 +125,16 @@ onMounted(() => {
             shape.lineTo(scaledX, -scaledY);
           }
         });
+        console.log(heightMap);
         const geometry = new THREE.ExtrudeGeometry(shape, {
-          depth: 1.6,
-          bevelEnabled: false,
+          depth: heightMap[feature.properties.name] * scale * 5,
+          bevelEnabled: true,
         });
         // ExtrudeGeometry代替ShapeGeometry
         // const geometry = new THREE.ShapeGeometry(shape);
         const material = [
           new THREE.MeshPhysicalMaterial({
-            color: 0x234cb0,
+            color: 0xa7b8f9,
             side: THREE.DoubleSide,
             transmission: 1, // 透明度（玻璃关键）
             metalness: 0.1,
@@ -122,10 +145,17 @@ onMounted(() => {
           new THREE.MeshStandardMaterial({ color: 0x1f3f91 }), //侧面
         ];
 
-        const mesh = new THREE.Mesh(geometry, material);
-        // 旋转Mesh
-        mesh.rotation.x = -Math.PI / 2;
-        cityGroup.add(mesh);
+        // 克隆几何体并应用旋转变换
+        const clonedGeometry = geometry.clone();
+        clonedGeometry.rotateX(-Math.PI / 2);
+
+        // 收集几何体用于合并
+        cityGeometries.push(clonedGeometry);
+
+        // 暂时不创建mesh，等合并后再创建
+        // const mesh = new THREE.Mesh(geometry, material);
+        // mesh.rotation.x = -Math.PI / 2;
+        // cityGroup.add(mesh);
 
         // 边界线
         // const edges = new THREE.EdgesGeometry(geometry);
@@ -139,8 +169,8 @@ onMounted(() => {
 
         // cityGroup.add(line);
       });
-
-      const zHeight = -1.6; // 假设地图厚度是 5
+      // 倒角默认0.2 + 安全距离防闪烁 0.05
+      const zHeight = -heightMap[feature.properties.name] * scale * 5 - 0.25; // 假设地图厚度是 5
       const points3D = linearea.map((coord) => {
         // 把经纬度映射到 X 和 Y，Z 轴设为固定高度
         return new THREE.Vector3(coord[0], coord[1], zHeight);
@@ -152,15 +182,43 @@ onMounted(() => {
       const topOutline = new THREE.LineLoop(lineGeometry, lineMaterial);
 
       topOutline.rotation.x = Math.PI / 2;
-      // console.log(topOutline);
       cityGroup.add(topOutline);
     });
+
+    // 合并当前城市的所有几何体
+    if (cityGeometries.length > 0) {
+      const mergedGeometry = mergeGeometries(cityGeometries);
+
+      // 创建材质（使用第一个材质的配置）
+      const mergedMaterial = new THREE.MeshPhysicalMaterial({
+        color: 0xa7b8f9,
+        side: THREE.DoubleSide,
+        transmission: 1,
+        metalness: 0.1,
+        ior: 1.5,
+        thickness: 0.5,
+        roughness: 0.8,
+      });
+
+      const mergedMesh = new THREE.Mesh(mergedGeometry, mergedMaterial);
+      cityGroup.add(mergedMesh);
+    }
+
     // 将整个城市Group添加到场景
     scene.add(cityGroup);
   });
 
   // 渲染
   animate();
+});
+
+onUnmounted(() => {
+  // 组件销毁时移除监听，非常重要！
+  window.removeEventListener("resize", handleResize);
+
+  // 如果需要，这里还可以释放 GPU 内存
+  renderer.dispose();
+  scene.clear();
 });
 </script>
 
