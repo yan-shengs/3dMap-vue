@@ -7,12 +7,12 @@ const controls = (camera, renderer) => {
   control.enableDamping = true;
 
   // 阻尼系数
-  control.dampingFactor = 0.65;
+  control.dampingFactor = 1;
 
   // 是否可以缩放
   control.enableZoom = true;
-  control.minDistance = 14; // 最小缩放距离
-  control.maxDistance = 16; // 最大缩放距离
+  control.minDistance = 30; // 最小缩放距离
+  control.maxDistance = 80; // 最大缩放距离
 
   // 是否可以旋转
   control.enableRotate = true;

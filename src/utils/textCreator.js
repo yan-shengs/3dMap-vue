@@ -26,10 +26,10 @@ function createTextSprite(text, centerid) {
   const sprite = new THREE.Sprite(material);
 
   // 调整精灵大小
-  sprite.scale.set(10 * 0.3, 5 * 0.3, 1 * 0.3);
+  sprite.scale.set(10 * 0.8, 5 * 0.8, 1 * 0.8);
 
   // 设置位置（centerid需要经过projection转换）
-  sprite.position.set(centerid[0], 1.3 || centerid[1], centerid[2] || 1);
+  sprite.position.set(centerid[0], 2.6 || centerid[1], centerid[2] || 1);
 
   return sprite;
 }

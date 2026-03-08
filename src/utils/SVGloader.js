@@ -1,51 +1,39 @@
 import * as THREE from "three";
-import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader.js";
 
-const SVGloader = (scene, position) => {
-  const loader = new SVGLoader();
+const SVGloader = (position) => {
+  // 创建一个容器Group，立即返回
+  const container = new THREE.Group();
 
+  // 使用TextureLoader加载SVG作为纹理
+  const textureLoader = new THREE.TextureLoader();
   const svgURL = new URL("../assets/location.svg", import.meta.url).href;
 
-  loader.load(svgURL, function (data) {
-    console.log("✅ SVG加载成功", data);
-    const paths = data.paths;
-
-    // 创建一个Group来组合所有SVG路径
-    const svgGroup = new THREE.Group();
-
-    paths.forEach((path) => {
-      const shapes = SVGLoader.createShapes(path);
-
-      shapes.forEach((shape) => {
-        const geometry = new THREE.ExtrudeGeometry(shape, {
-          depth: 0.5,
-          bevelEnabled: false,
-        });
-
-        const material = new THREE.MeshBasicMaterial({
-          color: path.color || 0xff0000,
-          side: THREE.DoubleSide,
-        });
-
-        const mesh = new THREE.Mesh(geometry, material);
-        svgGroup.add(mesh);
-      });
+  textureLoader.load(svgURL, function (texture) {
+    // 创建Sprite材质
+    const spriteMaterial = new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+      depthTest: true,
+      sizeAttenuation: false, // 设置为false使图标大小不随距离变化
     });
 
-    // SVG坐标系调整：缩放、旋转、定位
-    svgGroup.scale.set(0.02, -0.02, 0.02); // 再增大缩放
-    svgGroup.rotation.x = -Math.PI / 2;
-    svgGroup.rotation.y = Math.PI / 2;
-    svgGroup.rotation.z = Math.PI / 2;
+    // 创建Sprite
+    const sprite = new THREE.Sprite(spriteMaterial);
 
-    // 设置位置（y轴提高，确保在地图上方可见）
-    svgGroup.position.set(position[0], 1, position[1]);
+    // 设置Sprite大小（调整这个值来改变图标大小）
+    sprite.scale.set(0.05, 0.05, 1);
 
-    console.log("SVG位置:", svgGroup.position);
-    console.log("SVG子对象数量:", svgGroup.children.length);
+    // 设置位置
+    sprite.position.set(position[0], 2.1, position[1]);
 
-    scene.add(svgGroup);
+    console.log("Sprite位置:", sprite.position);
+
+    // 添加到容器中
+    container.add(sprite);
   });
+
+  // 立即返回容器，Sprite会异步加载后添加进去
+  return container;
 };
 
 export default SVGloader;
