@@ -58,6 +58,30 @@ const handleResize = () => {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 };
 
+let activeGroup = null;
+let pointerDownHandler = null;
+
+const setGroupState = (group, opacity = 1, scaleY = 1) => {
+  if (!group) return;
+
+  // 统一按固定值设置，避免反复点击导致累乘/累除
+  group.scale.y = scaleY;
+
+  group.children.forEach((item) => {
+    if (item.type !== "Mesh") return;
+
+    const materials = Array.isArray(item.material)
+      ? item.material
+      : [item.material];
+
+    materials.forEach((mat) => {
+      if (!mat) return;
+      mat.transparent = opacity < 1;
+      mat.opacity = opacity;
+    });
+  });
+};
+
 // 在组件挂载后执行DOM操作
 onMounted(() => {
   // 挂载到页面
@@ -153,9 +177,9 @@ onMounted(() => {
         cityGeometries.push(clonedGeometry);
 
         // 暂时不创建mesh，等合并后再创建
-        // const mesh = new THREE.Mesh(geometry, material);
-        // mesh.rotation.x = -Math.PI / 2;
-        // cityGroup.add(mesh);
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.rotation.x = -Math.PI / 2;
+        cityGroup.add(mesh);
 
         // 边界线
         // const edges = new THREE.EdgesGeometry(geometry);
@@ -186,27 +210,69 @@ onMounted(() => {
     });
 
     // 合并当前城市的所有几何体
-    if (cityGeometries.length > 0) {
-      const mergedGeometry = mergeGeometries(cityGeometries);
+    // if (cityGeometries.length > 0) {
+    //   const mergedGeometry = mergeGeometries(cityGeometries);
 
-      // 创建材质（使用第一个材质的配置）
-      const mergedMaterial = new THREE.MeshPhysicalMaterial({
-        color: 0xa7b8f9,
-        side: THREE.DoubleSide,
-        transmission: 1,
-        metalness: 0.1,
-        ior: 1.5,
-        thickness: 0.5,
-        roughness: 0.8,
-      });
+    //   // 创建材质（使用第一个材质的配置）
+    //   const mergedMaterial = new THREE.MeshPhysicalMaterial({
+    //     color: 0xa7b8f9,
+    //     side: THREE.DoubleSide,
+    //     transmission: 1,
+    //     metalness: 0.1,
+    //     ior: 1.5,
+    //     thickness: 0.5,
+    //     roughness: 0.8,
+    //   });
 
-      const mergedMesh = new THREE.Mesh(mergedGeometry, mergedMaterial);
-      cityGroup.add(mergedMesh);
-    }
+    //   const mergedMesh = new THREE.Mesh(mergedGeometry, mergedMaterial);
+    //   cityGroup.add(mergedMesh);
+    // }
 
     // 将整个城市Group添加到场景
     scene.add(cityGroup);
   });
+
+  pointerDownHandler = (event) => {
+    const mouse = new THREE.Vector2();
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster
+      .intersectObjects(scene.children, true)
+      .filter((item) => item.object.type !== "Line");
+
+    const hit = intersects.find(
+      (item) => item.object.type === "Mesh" || item.object.type === "Sprite",
+    );
+
+    if (!hit) {
+      if (activeGroup) {
+        setGroupState(activeGroup, 1, 1);
+        activeGroup = null;
+      }
+      return;
+    }
+
+    const nextGroup = hit.object.parent;
+    if (!nextGroup || nextGroup.type !== "Group") return;
+
+    // 点击同一对象：还原
+    if (activeGroup === nextGroup) {
+      setGroupState(nextGroup, 1, 1);
+      activeGroup = null;
+      return;
+    }
+
+    // 切换选中：先还原旧的，再高亮新的
+    if (activeGroup) {
+      setGroupState(activeGroup, 1, 1);
+    }
+    activeGroup = nextGroup;
+    setGroupState(activeGroup, 0.4, 1.2);
+  };
+
+  window.addEventListener("pointerdown", pointerDownHandler);
 
   // 渲染
   animate();
@@ -215,6 +281,9 @@ onMounted(() => {
 onUnmounted(() => {
   // 组件销毁时移除监听，非常重要！
   window.removeEventListener("resize", handleResize);
+  if (pointerDownHandler) {
+    window.removeEventListener("pointerdown", pointerDownHandler);
+  }
 
   // 如果需要，这里还可以释放 GPU 内存
   renderer.dispose();
