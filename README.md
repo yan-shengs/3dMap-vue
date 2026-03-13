@@ -33,6 +33,22 @@ npm run dev
 
 
 
+## future
+
+
+
+- [ ] circle 雷达圆环
+- [x] hdr加载问题
+- [ ] 项目结构问题
+- [x] loading进度条
+- [ ] 抽象函数和变量
+- [ ] 优化性能
+- [ ] 增加matcap材质
+- [ ] 侧面材质和正面材质如何改变色彩
+- [ ] 交互显示弹出功能
+
+
+
 ## **Information**
 
 3d-geoMap:https://github.com/xiaogua-bushigua/3d-geoMap
