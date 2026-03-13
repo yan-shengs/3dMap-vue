@@ -4,7 +4,7 @@
 
 This is a project named "3dMap-vue" on GitHub. The demo displays a 3D map of Zhejiang Province, built with Three.js and Vue3. It is an imitation of a project called "3dgeoMap" on GitHub, and the link is attached below.
 
-![image-20260308213722343](./README.assets/image-20260308213722343.png)
+![image-20260313203307715](./README.assets/image-20260313203307715.png)
 
 ## Tech Stack
 
@@ -37,14 +37,14 @@ npm run dev
 
 
 
-- [ ] circle 雷达圆环
+- [ ] 雷达探测背景图
+- [ ] 替换网格为镂空科技感非透明背景图
 - [x] hdr加载问题
 - [ ] 项目结构问题
 - [x] loading进度条
 - [ ] 抽象函数和变量
 - [ ] 优化性能
-- [ ] 增加matcap材质
-- [ ] 侧面材质和正面材质如何改变色彩
+- [ ] 增加matcap材质侧面材质
 - [ ] 交互显示弹出功能
 
 

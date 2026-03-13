@@ -26,12 +26,32 @@ const initThree = async () => {
   */
 
   // 初始化网格
-  const gridHelper = new THREE.GridHelper(
-    100, // 网格大小
-    100, // 分段数量
-    0x888888, // 主线颜色
-    0x444444, // 次线颜色
-  );
+  // const gridHelper = new THREE.GridHelper(
+  //  100, // 网格大小
+  //  100, // 分段数量
+  //  0x888888, // 主线颜色
+  //  0x444444, // 次线颜色
+  // );
+
+  // 1. 创建一个巨大的镂空科技平面几何体 (比如 200x200)
+  const floorGeometry = new THREE.PlaneGeometry(200, 200);
+
+  // 2. 使用物理材质，调出“深色科技金属”的质感
+  const floorMaterial = new THREE.MeshStandardMaterial({
+    color: 0x051325, // 极深的科技蓝/藏青色
+    roughness: 0.1, // 粗糙度极低，让它像镜面或打蜡的地板
+    metalness: 0.5, // 适度的金属感
+    transparent: false, // 透明冲突
+    opacity: 0.9, // 稍微带点透明度融入背景
+  });
+
+  // 3. 组合成网格模型
+  const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+
+  // 4. 平面默认是竖着的，需要把它平放倒在地上
+  floor.rotation.x = -Math.PI / 2;
+  // 稍微往下沉一点，防止和你的模型底部重叠闪烁
+  floor.position.y = -0.1;
 
   // 初始化控制器
   /* 用于监听renderer渲染器生成的canvas元素 */
@@ -63,7 +83,9 @@ const initThree = async () => {
   // 加入相机
   scene.add(camera);
   // 加入网格
-  scene.add(gridHelper);
+  // scene.add(gridHelper);
+  // 加入科技镂空背景图
+  scene.add(floor);
   try {
     // 初始化HDR加载器
     const HDRloader = new HDRLoader();
