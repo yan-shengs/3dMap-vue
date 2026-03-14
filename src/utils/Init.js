@@ -1,10 +1,10 @@
 import * as THREE from "three";
-import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { HDRLoader } from "three/addons/loaders/HDRLoader.js";
+import { loadResource } from "./resource";
 
+// 拆分初始化函数和异步加载资源函数
 // 初始化函数
-const initThree = async () => {
+const initThree = () => {
   // 初始化相机
   const camera = new THREE.PerspectiveCamera(
     75, // fov 视野角度 一般60,75
@@ -86,36 +86,10 @@ const initThree = async () => {
   // scene.add(gridHelper);
   // 加入科技镂空背景图
   scene.add(floor);
-  try {
-    // 初始化HDR加载器
-    const HDRloader = new HDRLoader();
-    // 导入HDR路径
-    const HDRURL = new URL(
-      "../assets/hdr/umhlanga_sunrise_1k.hdr",
-      import.meta.url,
-    ).href;
-    const texture = await HDRloader.loadAsync(HDRURL, (xhr) => {
-      if (xhr.total > 0) {
-        // 计算百分比
-        const percent = Math.floor((xhr.loaded / xhr.total) * 100);
 
-        // 手动把数字塞进 HTML 里
-        // progressText.innerText = percent;
-
-        console.log(`当前进度: ${percent}%`);
-      }
-    });
-
-    texture.mapping = THREE.EquirectangularReflectionMapping;
-    scene.environment = texture;
-  } catch (error) {
-    console.error("HDR 加载失败，请检查路径或网络", error);
-
-    // 补救措施，增加自然光
-    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
-    hemiLight.position.set(0, 200, 0); // 放到场景正上方
-    scene.add(hemiLight);
-  }
+  // 异步加载资源
+  loadResource(scene);
+  console.log("资源加载成功");
 
   return { scene, camera, renderer, controls };
 };

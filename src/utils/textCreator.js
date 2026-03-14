@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-function createTextSprite(text, centerid) {
+export function createTextSprite(text, centerid) {
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d");
 
@@ -34,5 +34,3 @@ function createTextSprite(text, centerid) {
 
   return sprite;
 }
-
-export default createTextSprite;
