@@ -129,7 +129,7 @@ let start = () => {
 
   // 异步加载资源
   loadResource(scene)
-    .then(() => {
+    .then((tex) => {
       console.log("资源加载成功");
       // 获取处理后的数据
       const Mapdata = checkGeoJsonProcessing(mapJson, mapValue);
@@ -198,7 +198,7 @@ let start = () => {
                 thickness: 0.5, // 厚度
                 roughness: 0.8,
               }),
-              new THREE.MeshStandardMaterial({ color: 0x1f3f91 }), //侧面
+              new THREE.MeshMatcapMaterial({ matcap: tex, color: 0x1f3f91 }), //侧面
             ];
 
             // 克隆几何体并应用旋转变换

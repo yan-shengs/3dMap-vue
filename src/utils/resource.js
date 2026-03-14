@@ -53,8 +53,8 @@ export async function HDRAsync(scene) {
 // 异步加载matcap的资源
 export const matcapMatri = async () => {
   try {
-    const textureLoader = new THREE.TextureLoader(MatcapURL);
-    const tex = await textureLoader.loadAsync(url);
+    const textureLoader = new THREE.TextureLoader();
+    const tex = await textureLoader.loadAsync(MatcapURL);
     tex.colorSpace = THREE.SRGBColorSpace;
 
     return tex;
@@ -79,7 +79,7 @@ export async function loadResource(scene) {
   await HDRAsync(scene);
 
   // 初始化Matcap资源
-  const { tex } = matcapMatri();
+  const tex = await matcapMatri();
 
   return tex;
 }
