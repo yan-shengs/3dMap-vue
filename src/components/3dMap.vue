@@ -6,7 +6,7 @@
 import * as THREE from "three";
 import initThree from "../utils/Init.js";
 import { checkGeoJsonProcessing, projection } from "../utils/DataProcessing.js";
-import { waterMapPin, textResource, labelRenderer } from "../utils/resource.js";
+import { waterMapPin, textResource, Render2D } from "../utils/resource.js";
 
 // vue声明周期函数
 import { onMounted, onUnmounted } from "vue";
@@ -14,26 +14,114 @@ import { onMounted, onUnmounted } from "vue";
 import mapJson from "../assets/map_ZheJiang.json";
 import mapValue from "../assets/values_with_Zhejiang.json";
 import heightMap from "../utils/height.js";
-import { time } from "three/tsl";
 
-const loading = document.getElementById("loading");
-// 初始化THREEjs配置, 需要在onMount之外以免unonmount拿不到
-const { scene, camera, renderer, controls } = initThree();
-let reqID; // 调用reqID之前需要声明，因此animate函数需要在这行之后，且需要unonmount拿得到
+let scene = null;
+let camera = null;
+let renderer = null;
+let controls = null;
+let reqID = null; // 调用reqID之前需要声明，因此animate函数需要在这行之后，且需要unonmount拿得到
+let isStart = false;
+let labelRenderer = null;
 
-// 在组件挂载后执行DOM操作
-onMounted(() => {
+let pointerDownHandler = null;
+let activeGroup = null;
+pointerDownHandler = (event) => {
+  const mouse = new THREE.Vector2();
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster
+    .intersectObjects(scene.children, true)
+    .filter((item) => item.object.type !== "Line");
+
+  const hit = intersects.find(
+    (item) => item.object.type === "Mesh" || item.object.type === "Sprite",
+  );
+
+  if (!hit) {
+    if (activeGroup) {
+      setGroupState(activeGroup, 1, 1);
+      activeGroup = null;
+    }
+    return;
+  }
+
+  const nextGroup = hit.object.parent;
+  if (!nextGroup || nextGroup.type !== "Group") return;
+
+  // 点击同一对象：还原
+  if (activeGroup === nextGroup) {
+    setGroupState(nextGroup, 1, 1);
+    activeGroup = null;
+    return;
+  }
+
+  // 切换选中：先还原旧的，再高亮新的
+  if (activeGroup) {
+    setGroupState(activeGroup, 1, 1);
+  }
+  activeGroup = nextGroup;
+  setGroupState(activeGroup, 0.4, 1.2);
+};
+
+// 监听鼠标交互事件，调用
+// window.addEventListener("pointerdown", pointerDownHandler);
+
+const setGroupState = (group, opacity = 1, scaleY = 1) => {
+  if (!group) return;
+
+  // 统一按固定值设置，避免反复点击导致累乘/累除
+  group.scale.y = scaleY;
+
+  group.children.forEach((item) => {
+    if (item.type !== "Mesh") return;
+
+    const materials = Array.isArray(item.material)
+      ? item.material
+      : [item.material];
+
+    materials.forEach((mat) => {
+      if (!mat) return;
+      mat.transparent = opacity < 1;
+      mat.opacity = opacity;
+    });
+  });
+};
+
+// 浏览器窗口实时渲染更新
+const handleResize = () => {
+  // 1. 获取窗口最新的宽高
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+
+  // 2. 更新相机
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+
+  // 3. 更新渲染器，2d渲染器
+  renderer.setSize(width, height);
+  labelRenderer.setSize(width, height);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+};
+
+let start = () => {
+  if (isStart) {
+    releaseComponenets();
+  }
+
+  isStart = true;
+
+  const loading = document.getElementById("loading");
+  // 初始化THREEjs配置, 需要在onMount之外以免unonmount拿不到
+  ({ scene, camera, renderer, controls } = initThree());
+  labelRenderer = Render2D();
+
   // 挂载到页面
   const threeContainer = document.getElementById("threeContainer");
   threeContainer.appendChild(renderer.domElement);
-
   // 获取处理后的数据
   const Mapdata = checkGeoJsonProcessing(mapJson, mapValue);
-
-  // 坐标轴
-  // const axesHelper = new THREE.AxesHelper(100);
-  // scene.add(axesHelper);
-
   // d3处理经纬度
   Mapdata.features.forEach((feature) => {
     // 每个城市创建一个Group
@@ -111,7 +199,7 @@ onMounted(() => {
         mesh.rotation.x = -Math.PI / 2;
 
         // 加入城市字体
-        textResource(threeContainer, cityGroup.name, cityGroup, [
+        textResource(threeContainer, labelRenderer, cityGroup.name, cityGroup, [
           textX,
           textY,
           1 + 0.01,
@@ -143,22 +231,6 @@ onMounted(() => {
     loading.style.display = "none";
   }
 
-  // 浏览器窗口实时渲染更新
-  const handleResize = () => {
-    // 1. 获取窗口最新的宽高
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-
-    // 2. 更新相机
-    camera.aspect = width / height;
-    camera.updateProjectionMatrix();
-
-    // 3. 更新渲染器，2d渲染器
-    renderer.setSize(width, height);
-    labelRenderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  };
-
   handleResize();
   // 监听窗口变化
   window.addEventListener("resize", handleResize);
@@ -172,96 +244,72 @@ onMounted(() => {
     renderer.render(scene, camera);
     labelRenderer.render(scene, camera); // 增加2d循环渲染，必须加这一行，HTML 标签才会跟随 3D 物体
   }
+};
 
-  let pointerDownHandler = null;
-  let activeGroup = null;
-  pointerDownHandler = (event) => {
-    const mouse = new THREE.Vector2();
-    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster
-      .intersectObjects(scene.children, true)
-      .filter((item) => item.object.type !== "Line");
+// 释放定时器，threejs实例，销毁组件附加功能
+function releaseComponenets() {
+  // 停止循环渲染功能
+  if (reqID) {
+    cancelAnimationFrame(reqID);
+    reqID = null;
+    console.log("渲染循环已彻底停止");
+  }
 
-    const hit = intersects.find(
-      (item) => item.object.type === "Mesh" || item.object.type === "Sprite",
-    );
+  // 组件销毁时移除监听，非常重要！
+  window.removeEventListener("resize", handleResize);
+  if (pointerDownHandler) {
+    window.removeEventListener("pointerdown", pointerDownHandler);
+  }
 
-    if (!hit) {
-      if (activeGroup) {
-        setGroupState(activeGroup, 1, 1);
-        activeGroup = null;
+  // 如果需要，这里还可以释放 GPU 内存
+  renderer.dispose();
+  // 清理 CSS2D 渲染器
+  if (labelRenderer && labelRenderer.domElement) {
+    // 1. 如果它已经被挂载到了页面上，就把它连根拔起
+    if (labelRenderer.domElement.parentNode) {
+      labelRenderer.domElement.parentNode.removeChild(labelRenderer.domElement);
+    }
+    // 2. （可选但推荐）把渲染器内部的元素强行清空
+    labelRenderer.domElement.innerHTML = "";
+  }
+  // 1. 递归遍历场景里所有的物体
+  scene.traverse((child) => {
+    // 2. 如果它是一个网格模型（Mesh）
+    if (child.isMesh) {
+      // 销毁几何体
+      if (child.geometry) {
+        child.geometry.dispose();
       }
-      return;
+
+      // 销毁材质
+      if (child.material) {
+        // 注意：有时候一个 Mesh 会贴多个材质（材质数组），需要遍历销毁
+        if (Array.isArray(child.material)) {
+          child.material.forEach((mat) => mat.dispose());
+        } else {
+          child.material.dispose();
+        }
+      }
     }
+  });
 
-    const nextGroup = hit.object.parent;
-    if (!nextGroup || nextGroup.type !== "Group") return;
+  // 3. 等骨肉都清理干净了，最后再把这些“空壳”从场景里踢出去！
+  scene.clear();
 
-    // 点击同一对象：还原
-    if (activeGroup === nextGroup) {
-      setGroupState(nextGroup, 1, 1);
-      activeGroup = null;
-      return;
-    }
+  isStart = false;
+}
 
-    // 切换选中：先还原旧的，再高亮新的
-    if (activeGroup) {
-      setGroupState(activeGroup, 1, 1);
-    }
-    activeGroup = nextGroup;
-    setGroupState(activeGroup, 0.4, 1.2);
-  };
-
-  // 监听鼠标交互事件，调用
-  window.addEventListener("pointerdown", pointerDownHandler);
-
-  const setGroupState = (group, opacity = 1, scaleY = 1) => {
-    if (!group) return;
-
-    // 统一按固定值设置，避免反复点击导致累乘/累除
-    group.scale.y = scaleY;
-
-    group.children.forEach((item) => {
-      if (item.type !== "Mesh") return;
-
-      const materials = Array.isArray(item.material)
-        ? item.material
-        : [item.material];
-
-      materials.forEach((mat) => {
-        if (!mat) return;
-        mat.transparent = opacity < 1;
-        mat.opacity = opacity;
-      });
-    });
-  };
+// 在组件挂载后执行DOM操作
+onMounted(() => {
+  // 开始加载设置
+  start();
+  // 坐标轴
+  // const axesHelper = new THREE.AxesHelper(100);
+  // scene.add(axesHelper);
 });
 
 onUnmounted(() => {
   releaseComponenets();
-
-  // 释放定时器，threejs实例，销毁组件附加功能
-  function releaseComponenets() {
-    // 停止循环渲染功能
-    if (reqID) {
-      cancelAnimationFrame(reqID);
-      reqID = null;
-      console.log("渲染循环已彻底停止");
-    }
-
-    // 组件销毁时移除监听，非常重要！
-    window.removeEventListener("resize", handleResize);
-    if (pointerDownHandler) {
-      window.removeEventListener("pointerdown", pointerDownHandler);
-    }
-
-    // 如果需要，这里还可以释放 GPU 内存
-    renderer.dispose();
-    scene.clear();
-  }
 });
 </script>
 

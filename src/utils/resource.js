@@ -117,13 +117,22 @@ export async function waterMapPin(scene, position) {
 // 文字资源要么使用textCreator函数,要么使用textResource - CSS2DObject
 
 // --- 1. 初始化 CSS2D 渲染器 ---
-export const labelRenderer = new CSS2DRenderer();
-labelRenderer.setSize(window.innerWidth, window.innerHeight);
-labelRenderer.domElement.style.position = "absolute";
-labelRenderer.domElement.style.top = "0px";
-labelRenderer.domElement.style.pointerEvents = "none"; // 关键：防止遮挡 WebGL 的点击事件
+export const Render2D = () => {
+  const labelRenderer = new CSS2DRenderer();
+  labelRenderer.setSize(window.innerWidth, window.innerHeight);
+  labelRenderer.domElement.style.position = "absolute";
+  labelRenderer.domElement.style.top = "0px";
+  labelRenderer.domElement.style.pointerEvents = "none"; // 关键：防止遮挡 WebGL 的点击事件
+  return labelRenderer;
+};
 
-export function textResource(threeContainer, name, mapMesh, position) {
+export function textResource(
+  threeContainer,
+  labelRenderer,
+  name,
+  mapMesh,
+  position,
+) {
   // 挂载到threeContainer，div元素下
   threeContainer.appendChild(labelRenderer.domElement);
   // --- 2. 创建 HTML 元素并包装 ---
