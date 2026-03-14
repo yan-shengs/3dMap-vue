@@ -72,7 +72,7 @@ pointerDownHandler = (event) => {
 };
 
 // 监听鼠标交互事件，调用
-// window.addEventListener("pointerdown", pointerDownHandler);
+window.addEventListener("pointerdown", pointerDownHandler);
 
 const setGroupState = (group, opacity = 1, scaleY = 1) => {
   if (!group) return;
