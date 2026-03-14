@@ -76,7 +76,7 @@ export const matcapMatri = async () => {
 
 export async function loadResource(scene) {
   // 初始化HDR资源
-  HDRAsync(scene);
+  await HDRAsync(scene);
 
   // 初始化Matcap资源
   const { tex } = matcapMatri();

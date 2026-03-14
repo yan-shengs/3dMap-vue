@@ -1,8 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { loadResource } from "./resource";
 
-// 拆分初始化函数和异步加载资源函数
+// 拆分初始化函数和异步加载资源函数,只处理同步代码
 // 初始化函数
 const initThree = () => {
   // 初始化相机
@@ -86,10 +85,6 @@ const initThree = () => {
   // scene.add(gridHelper);
   // 加入科技镂空背景图
   scene.add(floor);
-
-  // 异步加载资源
-  loadResource(scene);
-  console.log("资源加载成功");
 
   return { scene, camera, renderer, controls };
 };
