@@ -94,7 +94,7 @@ export async function waterMapPin(scene, position) {
 
     // 创建Sprite材质
     const spriteMaterial = new THREE.SpriteMaterial({
-      color: 0x1f883d,
+      color: 0xd7e6fc,
       map: texture, //加载svg图片
       transparent: true,
       depthTest: false, // 透明物体通常关闭
