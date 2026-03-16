@@ -156,3 +156,61 @@ export function textResource(
 
   return;
 }
+
+export const drawLineBetween2Spot = (coordStart, coordEnd) => {
+  const [x0, y0, z0] = [...coordStart];
+  const [x1, y1, z1] = [...coordEnd];
+  // 使用 QuadraticBezierCurve3 创建 三维二次贝塞尔曲线
+  const curve = new THREE.QuadraticBezierCurve3(
+    new THREE.Vector3(x0, -z0, y0),
+    new THREE.Vector3((x0 + x1) / 2, -(z0 + z1) / 2, 20),
+    new THREE.Vector3(x1, -z1, y1),
+  );
+
+  const flySpot = drawflySpot(curve);
+
+  const lineGeometry = new THREE.BufferGeometry();
+  // 获取曲线上50个点
+  const points = curve.getPoints(50);
+  const positions = [];
+  const colors = [];
+  const color = new THREE.Color();
+
+  // 给每个顶点设置演示 实现渐变
+  for (let j = 0; j < points.length; j++) {
+    color.setHSL(0.21 + j, 0.77, 0.55 + j * 0.0025); // 色
+    colors.push(color.r, color.g, color.b);
+    positions.push(points[j].x, points[j].y, points[j].z);
+  }
+  // 放入顶点 和 设置顶点颜色
+  lineGeometry.setAttribute(
+    "position",
+    new THREE.BufferAttribute(new Float32Array(positions), 3, true),
+  );
+  lineGeometry.setAttribute(
+    "color",
+    new THREE.BufferAttribute(new Float32Array(colors), 3, true),
+  );
+
+  const material = new THREE.LineBasicMaterial({
+    vertexColors: true,
+    // color: "red",
+    side: THREE.DoubleSide,
+  });
+  const flyLine = new THREE.Line(lineGeometry, material);
+
+  return { flyLine, flySpot };
+};
+
+export const drawflySpot = (curve) => {
+  const aGeo = new THREE.SphereGeometry(0.4);
+  const aMater = new THREE.MeshBasicMaterial({
+    color: "#55a555",
+    side: THREE.DoubleSide,
+  });
+  const aMesh = new THREE.Mesh(aGeo, aMater);
+  // 保存曲线实例
+  aMesh.curve = curve;
+  aMesh._s = 0;
+  return aMesh;
+};

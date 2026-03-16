@@ -68,8 +68,8 @@ const initThree = () => {
 
   // 是否可以旋转
   controls.enableRotate = true;
-  controls.minPolarAngle = Math.PI / 6; // 最小角度
-  controls.maxPolarAngle = Math.PI / 2 - Math.PI / 6; // 最大角度
+  // controls.minPolarAngle = Math.PI / 6; // 最小角度
+  // controls.maxPolarAngle = Math.PI / 2 - Math.PI / 6; // 最大角度
 
   // 是否可以平移
   controls.enablePan = false;

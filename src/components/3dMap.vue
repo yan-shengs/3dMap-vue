@@ -15,6 +15,7 @@ import {
   textResource,
   Render2D,
   loadResource,
+  drawLineBetween2Spot,
 } from "../utils/resource.js";
 
 // vue声明周期函数
@@ -38,6 +39,8 @@ const radarList = [];
 const meshValue = ref("");
 const meshName = ref("");
 const timer = new THREE.Clock();
+let flyLine = null;
+let flySpot = null;
 
 let pointerDownHandler = null;
 let activeGroup = null;
@@ -268,6 +271,24 @@ let start = () => {
         scene.add(cityGroup);
       });
 
+      const GroupList = [];
+      scene.children.forEach((obj) => {
+        if (obj.type == "Group") {
+          GroupList.push(obj);
+        }
+      });
+      GroupList.sort(); // 升序,这个能指定对象中的gdpValue属性吗？
+      ({ flyLine, flySpot } = drawLineBetween2Spot(
+        GroupList[0].children[0].position,
+        GroupList[GroupList.length - 1].children[0].position,
+      ));
+      const fly = new THREE.Group();
+      fly.add(flyLine);
+      fly.add(flySpot);
+      fly.rotation.x = -Math.PI / 2;
+
+      scene.add(fly);
+
       handleResize();
       // 监听窗口变化
       window.addEventListener("resize", handleResize);
@@ -294,6 +315,14 @@ let start = () => {
     radarList.forEach((mesh) => {
       mesh.material.uniforms.uTime.value += delta;
     });
+
+    if (flySpot && flySpot.curve) {
+      flySpot._s += delta * 0.2;
+      if (flySpot._s > 1) {
+        flySpot._s = 0;
+      }
+      flySpot.position.copy(flySpot.curve.getPointAt(flySpot._s));
+    }
 
     reqID = requestAnimationFrame(animate);
     controls.update();
