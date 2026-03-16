@@ -90,12 +90,14 @@ export async function waterMapPin(scene, position) {
   try {
     const texture = await textureLoader.loadAsync(svgURL);
 
+    texture.generateMipmaps = false; // 避免透明边缘mipmap污染
+
     // 创建Sprite材质
     const spriteMaterial = new THREE.SpriteMaterial({
       color: 0x1f883d,
       map: texture, //加载svg图片
       transparent: true,
-      depthTest: true,
+      depthTest: false, // 透明物体通常关闭
       sizeAttenuation: false, // 设置为false使图标大小不随距离变化
     });
 
@@ -106,7 +108,7 @@ export async function waterMapPin(scene, position) {
     sprite.scale.set(0.08, 0.08, 1);
 
     // 这里设置Mesh地图为x z轴，因此sprite跟着一起设置
-    sprite.position.set(position[0], 4.1, position[1]);
+    sprite.position.set(position[0], -position[2], position[1]);
 
     scene.add(sprite);
   } catch (error) {
@@ -148,7 +150,7 @@ export function textResource(
   div.style.font = "24px STHeiti";
 
   const labelObject = new CSS2DObject(div);
-  labelObject.position.set(position[0], 3.1, position[1]); // 相对于父物体的位置
+  labelObject.position.set(position[0], -position[2], position[1]); // 相对于父物体的位置
 
   mapMesh.add(labelObject);
 
