@@ -1,0 +1,19 @@
+/* 去除大部分元素默认边距，盒子模型 */
+* {
+  box-sizing: border-box;
+  padding: 0px;
+  margin: 0px;
+}
+
+/* 去除列表默认样式 */
+ul,
+ol {
+  list-style: none;
+}
+
+/* 继承viewscreen高度 */
+/* 但是内容一旦超过viewscreen会出现滚动条 */
+html,
+body {
+  height: 100%;
+}

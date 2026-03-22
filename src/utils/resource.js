@@ -1,23 +1,22 @@
 import { HDRLoader } from "three/addons/loaders/HDRLoader.js";
-import {
-  CSS2DRenderer,
-  CSS2DObject,
-} from "three/addons/renderers/CSS2DRenderer.js";
+import { CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { MeshBasicNodeMaterial } from "three/webgpu";
 import * as THREE from "three";
+import { projection } from "./dataProcessor";
 
 // 固定常量 - 顶部 - 易修改
-const HDRURL = new URL("../assets/hdr/umhlanga_sunrise_1k.hdr", import.meta.url)
-  .href;
+// const HDRURL = new URL("../assets/hdr/umhlanga.hdr", import.meta.url).href;
+const HDRURL = "/data/hdr/umhlanga.hdr";
 
-const MatcapURL = new URL(
-  "../assets/777D7D_BDCAD2_3E3C2E_B1B8B6-512px.png",
-  import.meta.url,
-).href;
+// const MatcapURL = new URL(
+//   "../assets/777D7D_BDCAD2_3E3C2E_B1B8B6-512px.png",
+//   import.meta.url,
+// ).href;
+const MatcapURL = "/data/matcap.png";
 
 // 水滴地图定位点
-const svgURL = new URL("../assets/location.svg", import.meta.url).href;
+// const svgURL = new URL("../assets/location.svg", import.meta.url).href;
+const svgURL = "/data/location.svg";
 
 export async function HDRAsync(scene) {
   // 异步加载hdr资源
@@ -84,7 +83,7 @@ export async function loadResource(scene) {
   return tex;
 }
 
-export async function waterMapPin(scene, position) {
+export async function waterMapPin() {
   // 使用TextureLoader加载SVG作为纹理
   const textureLoader = new THREE.TextureLoader();
   try {
@@ -92,25 +91,7 @@ export async function waterMapPin(scene, position) {
 
     texture.generateMipmaps = false; // 避免透明边缘mipmap污染
 
-    // 创建Sprite材质
-    const spriteMaterial = new THREE.SpriteMaterial({
-      color: 0xd7e6fc,
-      map: texture, //加载svg图片
-      transparent: true,
-      depthTest: false, // 透明物体通常关闭
-      sizeAttenuation: false, // 设置为false使图标大小不随距离变化
-    });
-
-    // 创建Sprite
-    const sprite = new THREE.Sprite(spriteMaterial);
-
-    // 设置Sprite大小（调整这个值来改变图标大小）
-    sprite.scale.set(0.08, 0.08, 1);
-
-    // 这里设置Mesh地图为x z轴，因此sprite跟着一起设置
-    sprite.position.set(position[0], -position[2], position[1]);
-
-    scene.add(sprite);
+    return texture;
   } catch (error) {
     console.error("加载地图定位点错误，请检查路径或网路", error);
   }
@@ -118,23 +99,7 @@ export async function waterMapPin(scene, position) {
 
 // 文字资源要么使用textCreator函数,要么使用textResource - CSS2DObject
 
-// --- 1. 初始化 CSS2D 渲染器 ---
-export const Render2D = () => {
-  const labelRenderer = new CSS2DRenderer();
-  labelRenderer.setSize(window.innerWidth, window.innerHeight);
-  labelRenderer.domElement.style.position = "absolute";
-  labelRenderer.domElement.style.top = "0px";
-  labelRenderer.domElement.style.pointerEvents = "none"; // 关键：防止遮挡 WebGL 的点击事件
-  return labelRenderer;
-};
-
-export function textResource(
-  threeContainer,
-  labelRenderer,
-  name,
-  mapMesh,
-  position,
-) {
+export function textResource(threeContainer, labelRenderer, name) {
   // 挂载到threeContainer，div元素下
   threeContainer.appendChild(labelRenderer.domElement);
   // --- 2. 创建 HTML 元素并包装 ---
@@ -150,21 +115,26 @@ export function textResource(
   div.style.font = "24px STHeiti";
 
   const labelObject = new CSS2DObject(div);
-  labelObject.position.set(position[0], -position[2], position[1]); // 相对于父物体的位置
+  // labelObject.position.set(position[0], -position[2], position[1]); // 相对于父物体的位置
 
-  mapMesh.add(labelObject);
-
-  return;
+  return labelObject;
 }
 
 export const drawLineBetween2Spot = (coordStart, coordEnd) => {
-  const [x0, y0, z0] = [...coordStart];
-  const [x1, y1, z1] = [...coordEnd];
+  let [x0, y0] = projection([...coordStart]);
+  let [x1, y1] = projection([...coordEnd]);
+
+  x0 = (x0 - window.innerWidth / 2) * 3;
+  y0 = (y0 - window.innerHeight / 2) * 3;
+  x1 = (x1 - window.innerWidth / 2) * 3;
+  y1 = (y1 - window.innerHeight / 2) * 3;
+
+  const [z0, z1] = [2, 2];
   // 使用 QuadraticBezierCurve3 创建 三维二次贝塞尔曲线
   const curve = new THREE.QuadraticBezierCurve3(
-    new THREE.Vector3(x0, -z0, y0),
-    new THREE.Vector3((x0 + x1) / 2, -(z0 + z1) / 2, 20),
-    new THREE.Vector3(x1, -z1, y1),
+    new THREE.Vector3(x0, -y0, z0),
+    new THREE.Vector3((x0 + x1) / 2, -(y0 + y1) / 2, 20),
+    new THREE.Vector3(x1, -y1, z1),
   );
 
   const flySpot = drawflySpot(curve);

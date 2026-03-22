@@ -1,57 +1,54 @@
 <template>
-  <div id="threeContainer">
-    <h3 id="marker" ref="marker">
-      2025年浙江省第四季度GDP数据:{{ meshName }}:{{ meshValue }}万元
-    </h3>
+  <div id="threeContainer" ref="threeContainer">
+    <Loading v-if="loading" />
+    <Marker v-show="markerStatus" :name="name" :value="value" />
   </div>
 </template>
 
 <script lang="js" setup>
+// 引入loading等组件
+import Loading from "./loading.vue";
+import Marker from "./marker.vue";
+// 引入三方库
 import * as THREE from "three";
-import initThree from "../utils/Init.js";
-import { checkGeoJsonProcessing, projection } from "../utils/DataProcessing.js";
-import {
-  waterMapPin,
-  textResource,
-  Render2D,
-  loadResource,
-  drawLineBetween2Spot,
-} from "../utils/resource.js";
-
-// vue声明周期函数
+// 引入vue函数
 import { onMounted, onUnmounted, ref } from "vue";
-// 地图数据
-import mapJson from "../assets/map_ZheJiang.json";
-import mapValue from "../assets/values_with_Zhejiang.json";
-import heightMap from "../utils/height.js";
-import { drawRadar, radarData } from "../utils/rader.js";
+// 引入自定义库
+import { mapEngine } from "../utils/engine.js";
+// 引入辅助函数
+import { axes } from "../utils/helper.js";
 
-let scene = null;
-let camera = null;
-let renderer = null;
-let controls = null;
-let reqID = null; // 调用reqID之前需要声明，因此animate函数需要在这行之后，且需要unonmount拿得到
-let isStart = false;
-let isFirst = true;
-let labelRenderer = null;
-const marker = ref(null);
-const radarList = [];
-const meshValue = ref("");
-const meshName = ref("");
-const timer = new THREE.Clock();
-let flyLine = null;
-let flySpot = null;
+import { loadResource } from "../utils/resource.js";
+import {
+  checkProcessing,
+  elevationSort,
+  EVL,
+  GDP,
+  GEO,
+  projection,
+} from "../utils/dataProcessor.js";
+
+const loading = ref(true);
+const markerStatus = ref(false);
+const threeContainer = ref(null);
+
+const name = ref("");
+const value = ref("");
+
+let onWindowResize = null;
+let onPointerDown = null;
 
 let pointerDownHandler = null;
 let activeGroup = null;
-pointerDownHandler = (event) => {
+pointerDownHandler = (event, camera, scene) => {
   const mouse = new THREE.Vector2();
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
   const raycaster = new THREE.Raycaster();
   raycaster.setFromCamera(mouse, camera);
+  // console.log("展示", scene);
   const intersects = raycaster
-    .intersectObjects(scene.children, true)
+    .intersectObjects(scene, true)
     .filter((item) => item.object.type !== "Line");
 
   const hit = intersects.find(
@@ -62,23 +59,23 @@ pointerDownHandler = (event) => {
     if (activeGroup) {
       setGroupState(activeGroup, 1, 1);
       activeGroup = null;
-      meshValue.value = "";
-      meshName.value = "";
-      marker.value.style.opacity = 0;
+      name.value = "";
+      value.value = "";
+      markerStatus.value = false;
     }
     return;
   }
 
-  const nextGroup = hit.object.parent;
-  if (!nextGroup || nextGroup.type !== "Group") return;
+  const nextGroup = hit.object;
+  // if (!nextGroup || nextGroup.type !== "Group") return;
 
   // 点击同一对象：还原
   if (activeGroup === nextGroup) {
     setGroupState(nextGroup, 1, 1);
     activeGroup = null;
-    meshValue.value = "";
-    meshName.value = "";
-    marker.value.style.opacity = 0;
+    name.value = "";
+    value.value = "";
+    markerStatus.value = false;
     return;
   }
 
@@ -87,22 +84,24 @@ pointerDownHandler = (event) => {
     setGroupState(activeGroup, 1, 1);
   }
   activeGroup = nextGroup;
-  setGroupState(activeGroup, 0.4, 1.2);
-  meshValue.value = activeGroup.gdpValue;
+  setGroupState(activeGroup, 0.6, activeGroup.scale.z * 1.1);
+  // meshValue.value = activeGroup.gdpValue;
   // console.log(meshValue.value);
-  meshName.value = activeGroup.name;
-  marker.value.style.opacity = 1;
-  console.log(marker.value);
+  // name.value = activeGroup.name;
+  // marker.value.style.opacity = 1;
+  console.log(activeGroup);
+  name.value = activeGroup.parent.name;
+  value.value = activeGroup.parent.GDP;
+  // name.value = "tex";
+  // value.value = "12";
+  markerStatus.value = true;
 };
-
-// 监听鼠标交互事件，调用
-window.addEventListener("pointerdown", pointerDownHandler);
 
 const setGroupState = (group, opacity = 1, scaleY = 1) => {
   if (!group) return;
 
   // 统一按固定值设置，避免反复点击导致累乘/累除
-  group.scale.y = scaleY;
+  group.scale.z = scaleY;
 
   group.children.forEach((item) => {
     if (item.type !== "Mesh") return;
@@ -120,7 +119,7 @@ const setGroupState = (group, opacity = 1, scaleY = 1) => {
 };
 
 // 浏览器窗口实时渲染更新
-const handleResize = () => {
+const handleResize = (camera, renderer, labelRenderer) => {
   // 1. 获取窗口最新的宽高
   const width = window.innerWidth;
   const height = window.innerHeight;
@@ -134,267 +133,117 @@ const handleResize = () => {
   labelRenderer.setSize(width, height);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 };
-
-let start = () => {
-  if (isStart) {
-    releaseComponenets();
-  }
-
-  isStart = true;
-
-  const loading = document.getElementById("loading");
-  // 初始化THREEjs配置, 需要在onMount之外以免unonmount拿不到
-  ({ scene, camera, renderer, controls } = initThree());
-  labelRenderer = Render2D();
-
-  // 挂载到页面
-  const threeContainer = document.getElementById("threeContainer");
-  threeContainer.appendChild(renderer.domElement);
-
-  radarData.forEach((item) => {
-    // [120.12, 30.18]
-    const mesh = drawRadar(item, 0);
-    radarList.push(mesh);
-    scene.add(mesh);
-  });
-
-  // 异步加载资源
-  loadResource(scene)
-    .then((tex) => {
-      console.log("资源加载成功");
-      // 获取处理后的数据
-      const Mapdata = checkGeoJsonProcessing(mapJson, mapValue);
-      // d3处理经纬度
-      Mapdata.features.forEach((feature) => {
-        // 每个城市创建一个Group
-        const cityGroup = new THREE.Group();
-        cityGroup.name = feature.properties.name;
-        cityGroup.gdpValue = feature.properties.gdpValue;
-
-        // 增加城市字体
-        const centroid = feature.properties.centroid; // 城市中心点
-        const projectedCentroid = projection(centroid);
-        const scale = 3;
-        const textX = (projectedCentroid[0] - window.innerWidth / 2) * scale;
-        const textY = (projectedCentroid[1] - window.innerHeight / 2) * scale;
-        // 倒角默认0.2 + 安全距离防闪烁 0.05
-        const zHeight = -heightMap[feature.properties.name] * scale * 5 - 0.25; // 假设地图厚度是 5
-        // 加入城市字体
-        textResource(threeContainer, labelRenderer, cityGroup.name, cityGroup, [
-          textX,
-          textY,
-          zHeight + 0.001,
-        ]);
-
-        // 传递转换后的坐标给SVGloader，添加到cityGroup
-        waterMapPin(cityGroup, [textX, textY, zHeight + 0.01]);
-
-        feature.geometry.coordinates.forEach((area) => {
-          const linearea = [];
-          area.forEach((pointer) => {
-            // 制作Mesh地图块
-            // 制作二维点构建形状路径
-            const shape = new THREE.Shape();
-
-            // 获取点的数据
-            pointer.forEach((point, index) => {
-              const longitude = point[0];
-              const latitude = point[1];
-
-              // 使用d3的projection函数进行坐标转换
-              // 转换后latitude需要填上负号
-
-              const projectedPoint = projection([longitude, latitude]);
-              const [x, y] = projectedPoint;
-
-              // 缩放坐标到合适的范围（投影后的坐标通常很大，需要缩小）
-              const scale = 3;
-              const scaledX = (x - window.innerWidth / 2) * scale;
-              const scaledY = (y - window.innerHeight / 2) * scale;
-
-              linearea.push([scaledX, scaledY]);
-
-              // 第一个点使用moveTo，其余点使用lineTo
-              if (index === 0) {
-                shape.moveTo(scaledX, -scaledY);
-              } else {
-                shape.lineTo(scaledX, -scaledY);
-              }
-            });
-
-            const geometry = new THREE.ExtrudeGeometry(shape, {
-              depth: heightMap[feature.properties.name] * scale * 5,
-              bevelEnabled: true,
-            });
-            // ExtrudeGeometry代替ShapeGeometry
-            // const geometry = new THREE.ShapeGeometry(shape);
-            const material = [
-              new THREE.MeshPhysicalMaterial({
-                color: 0xa7b8f9,
-                side: THREE.DoubleSide,
-                transmission: 1, // 透明度（玻璃关键）
-                metalness: 0.1,
-                ior: 1.5, // 折射率（玻璃约1.5）
-                thickness: 0.5, // 厚度
-                roughness: 0.8,
-              }),
-              new THREE.MeshMatcapMaterial({ matcap: tex, color: 0x1f3f91 }), //侧面
-            ];
-
-            // 克隆几何体并应用旋转变换
-            const clonedGeometry = geometry.clone();
-            clonedGeometry.rotateX(-Math.PI / 2);
-
-            // 暂时不创建mesh，等合并后再创建
-            const mesh = new THREE.Mesh(geometry, material);
-            mesh.rotation.x = -Math.PI / 2;
-
-            cityGroup.add(mesh);
-          });
-
-          const points3D = linearea.map((coord) => {
-            // 把经纬度映射到 X 和 Y，Z 轴设为固定高度
-            return new THREE.Vector3(coord[0], coord[1], zHeight);
-          });
-
-          const lineGeometry = new THREE.BufferGeometry().setFromPoints(
-            points3D,
-          );
-          const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
-          // 画顶部的线
-          const topOutline = new THREE.LineLoop(lineGeometry, lineMaterial);
-
-          topOutline.rotation.x = Math.PI / 2;
-          cityGroup.add(topOutline);
-        });
-        // 将整个城市Group添加到场景
-        scene.add(cityGroup);
-      });
-
-      const GroupList = [];
-      scene.children.forEach((obj) => {
-        if (obj.type == "Group") {
-          GroupList.push(obj);
-        }
-      });
-      GroupList.sort(); // 升序,这个能指定对象中的gdpValue属性吗？
-      ({ flyLine, flySpot } = drawLineBetween2Spot(
-        GroupList[0].children[0].position,
-        GroupList[GroupList.length - 1].children[0].position,
-      ));
-      const fly = new THREE.Group();
-      fly.add(flyLine);
-      fly.add(flySpot);
-      fly.rotation.x = -Math.PI / 2;
-
-      scene.add(fly);
-
-      handleResize();
-      // 监听窗口变化
-      window.addEventListener("resize", handleResize);
-
-      // 开始渲染
-      animate();
-    })
-    .catch((error) => {
-      console.error("资源加载失败", error);
-    });
-
-  // 循环渲染功能
-  function animate() {
-    if (isFirst) {
-      // 移除loading动画
-      if (loading) {
-        loading.style.display = "none";
-      }
-      isFirst = false;
-    }
-
-    // 获取固定增量
-    const delta = timer.getDelta();
-    radarList.forEach((mesh) => {
-      mesh.material.uniforms.uTime.value += delta;
-    });
-
-    if (flySpot && flySpot.curve) {
-      flySpot._s += delta * 0.2;
-      if (flySpot._s > 1) {
-        flySpot._s = 0;
-      }
-      flySpot.position.copy(flySpot.curve.getPointAt(flySpot._s));
-    }
-
-    reqID = requestAnimationFrame(animate);
-    controls.update();
-    renderer.render(scene, camera);
-    labelRenderer.render(scene, camera); // 增加2d循环渲染，必须加这一行，HTML 标签才会跟随 3D 物体
-  }
-};
-
-// 释放定时器，threejs实例，销毁组件附加功能
-function releaseComponenets() {
-  // 停止循环渲染功能
-  if (reqID) {
-    cancelAnimationFrame(reqID);
-    reqID = null;
-    console.log("渲染循环已彻底停止");
-  }
-
-  // 组件销毁时移除监听，非常重要！
-  window.removeEventListener("resize", handleResize);
-  if (pointerDownHandler) {
-    window.removeEventListener("pointerdown", pointerDownHandler);
-  }
-
-  // 如果需要，这里还可以释放 GPU 内存
-  renderer.dispose();
-  // 清理 CSS2D 渲染器
-  if (labelRenderer && labelRenderer.domElement) {
-    // 1. 如果它已经被挂载到了页面上，就把它连根拔起
-    if (labelRenderer.domElement.parentNode) {
-      labelRenderer.domElement.parentNode.removeChild(labelRenderer.domElement);
-    }
-    // 2. （可选但推荐）把渲染器内部的元素强行清空
-    labelRenderer.domElement.innerHTML = "";
-  }
-  // 1. 递归遍历场景里所有的物体
-  scene.traverse((child) => {
-    // 2. 如果它是一个网格模型（Mesh）
-    if (child.isMesh) {
-      // 销毁几何体
-      if (child.geometry) {
-        child.geometry.dispose();
-      }
-
-      // 销毁材质
-      if (child.material) {
-        // 注意：有时候一个 Mesh 会贴多个材质（材质数组），需要遍历销毁
-        if (Array.isArray(child.material)) {
-          child.material.forEach((mat) => mat.dispose());
-        } else {
-          child.material.dispose();
-        }
-      }
-    }
-  });
-
-  // 3. 等骨肉都清理干净了，最后再把这些“空壳”从场景里踢出去！
-  scene.clear();
-
-  isStart = false;
-}
+// 开始加载设置 给onmouted和unonmouted接收
+let engine = null;
 
 // 在组件挂载后执行DOM操作
 onMounted(() => {
-  // 开始加载设置
-  start();
-  // 坐标轴
-  // const axesHelper = new THREE.AxesHelper(100);
-  // scene.add(axesHelper);
+  engine = new mapEngine();
+  // 在init之前需要先进行渲染器的元素挂载
+  // 挂载到页面
+  threeContainer.value.appendChild(engine.renderer.domElement);
+  threeContainer.value.appendChild(engine.labelRenderer.domElement);
+  // 异步资源加载
+  loadResource(engine.scene).then(async (tex) => {
+    engine.init();
+
+    // 加入基座
+    engine.floors.forEach((floor) => {
+      engine.setRotation(floor, [-Math.PI / 2, 0, 0]);
+
+      floor.position.y = -0.1;
+      engine.addTOScene(floor);
+    });
+
+    engine.radars.forEach((radar) => {
+      engine.addTOScene(radar);
+    });
+
+    engine.createFlySpots(checkProcessing(GEO, GDP, EVL).features);
+
+    engine.createMesh(
+      checkProcessing(GEO, GDP, EVL).features,
+      projection,
+      tex,
+      elevationSort(EVL),
+    );
+
+    await engine.createWaterPin(
+      checkProcessing(GEO, GDP, EVL).features,
+      elevationSort(EVL),
+    );
+
+    engine.createText(
+      threeContainer.value,
+      checkProcessing(GEO, GDP, EVL).features,
+      elevationSort(EVL),
+    );
+
+    const objs = new THREE.Group();
+    engine.clickObject.forEach((mesh) => {
+      // engine.setRotation(mesh, [-Math.PI / 2, 0, 0]);
+      objs.add(mesh);
+      // engine.addTOScene(mesh);
+    });
+    engine.pins.forEach((p) => {
+      // engine.setRotation(mesh, [-Math.PI / 2, 0, 0]);
+      objs.add(p);
+      // engine.addTOScene(mesh);
+    });
+
+    engine.texts.forEach((text) => {
+      objs.add(text);
+    });
+
+    engine.flySpots.forEach((fly) => {
+      objs.add(fly);
+      console.log(fly);
+    });
+
+    objs.rotation.x = -Math.PI / 2;
+    engine.addTOScene(objs);
+
+    engine.createLinear(elevationSort(EVL));
+
+    engine.linearMesh.forEach((line) => {
+      engine.setRotation(line, [-Math.PI / 2, 0, 0]);
+      engine.addTOScene(line);
+    });
+
+    axes(engine.scene);
+
+    engine.animate(engine);
+    loading.value = false;
+
+    console.log(engine.scene);
+
+    handleResize(engine.camera, engine.renderer, engine.labelRenderer);
+
+    // 专门定义带名字的包裹函数，加上安全防线！
+    onWindowResize = () => {
+      if (!engine) return; // 终极安全锁：如果引擎被销毁了，啥也不干！
+      handleResize(engine.camera, engine.renderer, engine.labelRenderer);
+    };
+
+    onPointerDown = (event) => {
+      if (!engine) return; // 终极安全锁
+      pointerDownHandler(event, engine.camera, engine.clickObject);
+    };
+
+    window.addEventListener("resize", onWindowResize);
+    // 监听鼠标交互事件，调用
+    window.addEventListener("pointerdown", onPointerDown);
+  });
 });
 
 onUnmounted(() => {
-  releaseComponenets();
+  // 亲手解绑 DOM 事件（防止内存泄漏）
+  window.removeEventListener("resize", onWindowResize);
+  window.removeEventListener("pointerdown", onPointerDown);
+  // 清理内存
+  engine.dispose();
+  // 实现engine垃圾回收
+  engine = null;
 });
 </script>
 
@@ -408,22 +257,5 @@ onUnmounted(() => {
   margin: 0;
   padding: 0;
   overflow: hidden;
-}
-
-#marker {
-  position: fixed;
-  left: 24px;
-  bottom: 24px;
-  margin: 0;
-  padding: 10px 14px;
-  border-radius: 10px;
-  color: #dbe7ff;
-  background: rgba(7, 16, 38, 0.72);
-  border: 1px solid rgba(123, 169, 255, 0.35);
-  backdrop-filter: blur(6px);
-  pointer-events: none;
-  font-size: 14px;
-  line-height: 1.4;
-  opacity: 0;
 }
 </style>
