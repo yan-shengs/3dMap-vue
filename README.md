@@ -1,53 +1,89 @@
-# **3dMap-vue**
+# 3dMap-vue
 
-## **Description**
+A 3D map visualization project of Zhejiang Province built with Vue 3 and Three.js.
 
-This is a project named "3dMap-vue" on GitHub. The demo displays a 3D map of Zhejiang Province, built with Three.js and Vue3. It is an imitation of a project called "3dgeoMap" on GitHub, and the link is attached below.
+This project is an imitation/reproduction practice based on [`3d-geoMap`](https://github.com/xiaogua-bushigua/3d-geoMap), with additional refactoring and feature extensions.
 
-![动画](./assets/动画.gif)、![image-20260323012556102](./assets/image-20260323012556102.png)
+## Preview
+
+![Preview 1](./assets/image-20260326034307143.png)![动画](./assets/动画.gif)
+![Preview 2](./assets/image-20260326034322284.png)
+
+## Features
+
+- 3D extruded map of Zhejiang Province
+- GeoJSON parsing and projection conversion (Mercator via d3)
+- Region click interaction and information panel
+- Radar scanning background effect
+- Fly line animation
+- Matcap side material for enhanced visual style
+- Loading progress feedback
 
 ## Tech Stack
 
 - Vite
-- Vue3
-- Javascript
-- d3.js - 墨卡托投影
-- GeoJson处理(阿里地理工具)
-- three.js
+- Vue 3
+- JavaScript
+- Three.js
+- d3.js (Mercator projection)
+- GeoJSON processing (Ali geographic tooling / district data workflow)
 
-## Usage
+## Getting Started
 
-First,
+### Prerequisites
 
-```cmd 
+- Node.js 18+ (recommended)
+- npm 9+ (or compatible package manager)
+
+### Install
+
+```bash
 npm install
 ```
 
-Second，
+### Run Development Server
 
-```cmd
+```bash
 npm run dev
 ```
 
+### Build for Production
 
+```bash
+npm run build
+```
 
-## future
+### Lint
 
+```bash
+npm run lint
+```
 
+## Project Structure
 
-- [x] 雷达探测背景图
-- [x] 替换网格为镂空科技感非透明背景图
-- [x] hdr加载问题
-- [ ] 项目结构问题
-- [x] loading进度条
-- [ ] 封装抽象函数和变量
-- [ ] 优化性能
-- [x] 增加matcap材质侧面材质
-- [x] 交互显示弹出功能
-- [x] 飞线
+```text
+src/
+  core/           # three engine, map modules, resource manager
+  views/          # page-level vue files
+  components/     # reusable vue components
+  config/         # map and visual configs
+  utils/          # loaders and helpers
+public/data/      # JSON/HDR/texture assets
+```
 
+## Roadmap
 
+- [x] Radar scanning background
+- [x] Replace grid with sci-fi style floor
+- [x] HDR loading flow optimization
+- [x] Project structure refactor
+- [x] Loading progress bar
+- [x] Abstract utilities and constants
+- [x] Performance optimization
+- [x] Matcap side material
+- [x] Interactive info popup
+- [x] Fly line effect
 
-## **Information**
+## Acknowledgements
 
-3d-geoMap:https://github.com/xiaogua-bushigua/3d-geoMap
+- Original inspiration: [`xiaogua-bushigua/3d-geoMap`](https://github.com/xiaogua-bushigua/3d-geoMap)

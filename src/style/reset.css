@@ -1,19 +1,68 @@
-/* 去除大部分元素默认边距，盒子模型 */
-* {
+/* 
+这里舍弃一刀切是因为考虑到可能其他组件库的元素底层
+使用了content-box
+*,*::after,*::before {
   box-sizing: border-box;
-  padding: 0px;
-  margin: 0px;
+} 
+  
+*/
+
+/* 伪元素默认没有margin,padding */
+* {
+  margin: 0;
+  padding: 0; /* 清除所有默认间距 */
 }
 
-/* 去除列表默认样式 */
-ul,
-ol {
-  list-style: none;
+/* 
+使用inherit使得元素逐一从最顶层元素html继承box-sizing属性
+而遇到有问题的元素，直接手动设置即可使得该组件恢复正常
+如果你引用了一个第三方的插件，而这个插件必须使用传统的 content-box 才能正常显示，你只需要这样写：
+
+.old-widget {
+  box-sizing: content-box; 只要改这一个地方
+}
+由于你之前设置了 * { box-sizing: inherit; }，那么 .old-widget 内部的所有子元素和伪元素都会自动跟着变成 content-box。这比强行用 * 全局锁死要灵活得多。
+
+*/
+
+/* border-box是除margin的部分 */
+/* content-box只是包括内容 */
+html {
+  box-sizing: border-box;
 }
 
-/* 继承viewscreen高度 */
-/* 但是内容一旦超过viewscreen会出现滚动条 */
-html,
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+}
+
+/* html,
 body {
+  min-height: 100%;
+  font-size: 16px;
+} */
+
+/* 由于html，body默认没有设置高度，因此需要100%继承viewpoint视图 */
+html {
   height: 100%;
+  /* 为了防止用户设置浏览器默认字体大小，强行设置16px会导致设置无效 */
+  font-size: 62.5%;
+  /* 16px * 62.5% = 10px */
+  /* 接下来用户调整，我们基于rem都是等比例缩放 */
 }
+
+/* body继承html，html一定要设置 */
+body {
+  line-height: 1.5; /* 默认行高，增强可读性 */
+  min-height: 100%; /* 至少占满全屏，内容多时可溢出 */
+}
+
+/* 当然也可以不设置html */
+/* 直接设置body {height: 100vh} */
+/* 在移动端浏览器（如 Safari）中，
+100vh 经常会包含顶部的地址栏高度，
+导致页面底部被遮挡并产生多余滚动。
+而你这种 html { height: 100% } 的写法，
+浏览器通常能更智能地处理地址栏伸缩带来的高度变化。
+*/

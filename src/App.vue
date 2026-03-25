@@ -1,9 +1,7 @@
-<script setup>
-import Map from "./components/3dMap.vue";
-</script>
+<script setup></script>
 
 <template>
-  <Map />
+  <RouterView></RouterView>
 </template>
 
-<style></style>
+<style scoped></style>
