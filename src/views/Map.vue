@@ -24,7 +24,7 @@ let engine = null
 let renderer = null
 let labelRenderer = null
 let activeGroup = null
-const onPointerdown = () => {
+const onPointerdown = (event) => {
   pointerDownHandler(event, engine.camera, engine.map.clickMapObjects)
 }
 
